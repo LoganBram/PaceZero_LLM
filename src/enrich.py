@@ -9,10 +9,15 @@ PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 if not PERPLEXITY_API_KEY:
     raise ValueError("PERPLEXITY_API_KEY not found — did you create a .env file?")
 
-def load_first_contact(path="data/challenge_contacts.csv"):
+def load_unique_orgs(path="data/challenge_contacts.csv"):
+    """Returns a dict of {org_name: first contact row for that org}"""
+    orgs = {}
     with open(path, newline="") as f:
-        reader = csv.DictReader(f)
-        return next(reader)
+        for row in csv.DictReader(f):
+            org = row["Organization"]
+            if org not in orgs:
+                orgs[org] = row
+    return orgs
 
 def build_system_prompt():
     return """You are an expert LP (limited partner) analyst for PaceZero Capital Partners, a sustainability-focused private credit firm raising Fund II.
@@ -114,9 +119,11 @@ def enrich_contact(contact):
     return result, usage
 
 if __name__ == "__main__":
-    contact = load_first_contact()
-    print(f"Enriching: {contact['Contact Name']} @ {contact['Organization']}\n")
-    result, usage = enrich_contact(contact)
+    orgs = load_unique_orgs()
+    # grab just the first org for now
+    first_org = next(iter(orgs.values()))
+    print(f"Enriching: {first_org['Organization']} ({len(orgs)} unique orgs total)\n")
+    result, usage = enrich_contact(first_org)
     print(json.dumps(result, indent=2))
     print(f"\n--- Token Usage ---")
     print(f"Input:  {usage.get('prompt_tokens', '?')}")
